@@ -12,7 +12,9 @@ export function App() {
   const { data: employees, ...employeeUtils } = useEmployees()
   const { data: paginatedTransactions, ...paginatedTransactionsUtils } = usePaginatedTransactions()
   const { data: transactionsByEmployee, ...transactionsByEmployeeUtils } = useTransactionsByEmployee()
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingEmployee, setIsLoadingEmployee] = useState(false)
+  // const [isLoadingPaginated, setIsLoadingPaginated] = useState(false)
+  const [paginated, setPagenated] = useState(true)
 
   const transactions = useMemo(
     () => paginatedTransactions?.data ?? transactionsByEmployee ?? null,
@@ -20,13 +22,13 @@ export function App() {
   )
 
   const loadAllTransactions = useCallback(async () => {
-    setIsLoading(true)
+    setIsLoadingEmployee(true)
+    // setIsLoadingPaginated(true)
     transactionsByEmployeeUtils.invalidateData()
 
-    await employeeUtils.fetchAll()
-    await paginatedTransactionsUtils.fetchAll()
+    employeeUtils.fetchAll().then(() => setIsLoadingEmployee(false))
+    paginatedTransactionsUtils.fetchAll() //.then(() => setIsLoadingPaginated(false))
 
-    setIsLoading(false)
   }, [employeeUtils, paginatedTransactionsUtils, transactionsByEmployeeUtils])
 
   const loadTransactionsByEmployee = useCallback(
@@ -51,7 +53,7 @@ export function App() {
         <hr className="RampBreak--l" />
 
         <InputSelect<Employee>
-          isLoading={isLoading}
+          isLoading={isLoadingEmployee}
           defaultValue={EMPTY_EMPLOYEE}
           items={employees === null ? [] : [EMPTY_EMPLOYEE, ...employees]}
           label="Filter by employee"
@@ -65,7 +67,15 @@ export function App() {
               return
             }
 
-            await loadTransactionsByEmployee(newValue.id)
+            if (newValue.id === "") {
+              await loadAllTransactions()
+              setPagenated(true)
+            } else {
+              setPagenated(false)
+              await loadTransactionsByEmployee(newValue.id)
+            }
+
+            
           }}
         />
 
@@ -74,7 +84,7 @@ export function App() {
         <div className="RampGrid">
           <Transactions transactions={transactions} />
 
-          {transactions !== null && (
+          {transactions !== null && paginated && paginatedTransactions?.nextPage != null && (
             <button
               className="RampButton"
               disabled={paginatedTransactionsUtils.loading}
